@@ -1,21 +1,21 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 CORS(app)
 
-# Replace with your Render PostgreSQL database URL
+# Replace with your actual Render PostgreSQL database URL
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://my_db_4ymp_user:6oEiClQEYhvMHsF54TM3dHurgtkWVcfY@dpg-d0a94bs9c44c738og0i0-a.oregon-postgres.render.com/my_db_4ymp'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
 class User(db.Model):
+    __tablename__ = 'users'  # safer name than "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password = db.Column(db.String(128), nullable=False)
 
 with app.app_context():
     db.create_all()
@@ -66,8 +66,7 @@ def register():
     data = request.get_json()
     if User.query.filter_by(username=data['username']).first():
         return 'Username already exists', 400
-    hashed_password = generate_password_hash(data['password'])
-    new_user = User(username=data['username'], password_hash=hashed_password)
+    new_user = User(username=data['username'], password=data['password'])
     db.session.add(new_user)
     db.session.commit()
     return 'User registered successfully', 201
@@ -76,7 +75,7 @@ def register():
 def login():
     data = request.get_json()
     user = User.query.filter_by(username=data['username']).first()
-    if not user or not check_password_hash(user.password_hash, data['password']):
+    if not user or user.password != data['password']:
         return 'Invalid username or password', 401
     return 'Login successful', 200
 
